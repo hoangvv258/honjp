@@ -8,8 +8,8 @@ import sqlite3
 import os
 import re
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'honjp.db')
-DATA_DIR = os.path.dirname(__file__)
+DB_PATH = os.environ.get('HONJP_DB_PATH', os.path.join(os.path.dirname(__file__), 'honjp.db'))
+DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ============================================================
 # Enrichment data – curated examples & details for core items

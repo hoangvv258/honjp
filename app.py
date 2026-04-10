@@ -133,7 +133,9 @@ def ensure_db():
         import subprocess
         import sys
         init_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'init_db.py')
-        subprocess.run([sys.executable, init_script], check=True)
+        env = os.environ.copy()
+        env['HONJP_DB_PATH'] = DB_PATH
+        subprocess.run([sys.executable, init_script], env=env, check=True)
 
 
 def get_db():
