@@ -11,7 +11,12 @@ from datetime import datetime
 from flask import Flask, render_template, request, jsonify, g
 
 app = Flask(__name__)
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'honjp.db')
+
+# For serverless/read-only environments, use /tmp
+_base_dir = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(_base_dir, 'honjp.db')
+if not os.access(_base_dir, os.W_OK):
+    DB_PATH = os.path.join('/tmp', 'honjp.db')
 
 LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1']
 
@@ -122,8 +127,18 @@ KANJI_COMPONENTS = {
 }
 
 
+def ensure_db():
+    """Create database if it doesn't exist (for deployment)."""
+    if not os.path.exists(DB_PATH):
+        import subprocess
+        import sys
+        init_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'init_db.py')
+        subprocess.run([sys.executable, init_script], check=True)
+
+
 def get_db():
     if 'db' not in g:
+        ensure_db()
         g.db = sqlite3.connect(DB_PATH)
         g.db.row_factory = sqlite3.Row
     return g.db
