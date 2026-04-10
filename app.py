@@ -130,12 +130,11 @@ KANJI_COMPONENTS = {
 def ensure_db():
     """Create database if it doesn't exist (for deployment)."""
     if not os.path.exists(DB_PATH):
-        import subprocess
-        import sys
-        init_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'init_db.py')
-        env = os.environ.copy()
-        env['HONJP_DB_PATH'] = DB_PATH
-        subprocess.run([sys.executable, init_script], env=env, check=True)
+        import init_db
+        init_db.DB_PATH = DB_PATH
+        conn = init_db.create_db()
+        init_db.import_data(conn)
+        conn.close()
 
 
 def get_db():
