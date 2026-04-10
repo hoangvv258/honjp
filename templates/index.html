@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}HonJP - Học Tiếng Nhật{% endblock %}
+
+{% block content %}
+<style>
+    .hero {
+        text-align: center;
+        padding: 48px 20px 32px;
+        position: relative;
+    }
+    .hero h1 {
+        font-size: 2.8em;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        background: linear-gradient(135deg, var(--text) 0%, var(--primary) 50%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 12px;
+        line-height: 1.2;
+    }
+    .hero p {
+        color: var(--text-light);
+        font-size: 1.1em;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    .bento-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: auto;
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+    .bento-item {
+        background: var(--card);
+        backdrop-filter: var(--glass-blur);
+        border-radius: var(--radius-lg);
+        padding: 32px;
+        border: var(--glass-border);
+        box-shadow: var(--shadow);
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    .bento-item:hover { transform: translateY(-4px); box-shadow: var(--shadow-pastel); }
+    .bento-item.span-2 { grid-column: span 2; }
+    .bento-item.span-row { grid-row: span 2; }
+    .bento-stat-icon { font-size: 2.8em; margin-bottom: 12px; }
+    .bento-stat-value {
+        font-size: 2.8em;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        line-height: 1;
+    }
+    .bento-stat-value.grad-1 {
+        background: linear-gradient(135deg, #6C63FF, #06B6D4);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .bento-stat-value.grad-2 {
+        background: linear-gradient(135deg, #F43F5E, #F59E0B);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .bento-stat-value.grad-3 {
+        background: linear-gradient(135deg, #10B981, #06B6D4);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .bento-stat-label { color: var(--text-light); font-weight: 500; margin-top: 6px; font-size: 0.95em; }
+    .bento-item .glow {
+        position: absolute;
+        width: 120px; height: 120px;
+        border-radius: 50%;
+        filter: blur(40px);
+        opacity: 0.15;
+        pointer-events: none;
+    }
+    .glow-purple { background: #6C63FF; top: -30px; right: -30px; }
+    .glow-cyan { background: #06B6D4; bottom: -30px; left: -30px; }
+    .glow-pink { background: #F43F5E; top: -30px; left: -30px; }
+    
+    .level-dist-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .level-dist-table th {
+        padding: 10px 14px;
+        text-align: left;
+        font-size: 0.82em;
+        font-weight: 600;
+        color: var(--text-light);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border);
+    }
+    .level-dist-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.95em;
+    }
+    .level-dist-table tr:last-child td { border-bottom: none; }
+    
+    .start-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 14px;
+    }
+    .start-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px 16px;
+        background: var(--card);
+        backdrop-filter: var(--glass-blur);
+        border-radius: var(--radius-lg);\n        border: var(--glass-border);
+        box-shadow: var(--shadow);
+        text-decoration: none;
+        color: var(--text);
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    .start-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary), var(--accent));
+        opacity: 0;
+        transition: var(--transition);
+    }
+    .start-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-pastel); }
+    .start-card:hover::after { opacity: 1; }
+    .start-card .s-icon { font-size: 2.4em; margin-bottom: 10px; }
+    .start-card .s-title { font-weight: 700; font-size: 1em; }
+    .start-card .s-desc { color: var(--text-light); font-size: 0.82em; text-align: center; margin-top: 6px; }
+    
+    .tips-list { list-style: none; padding: 0; }
+    .tips-list li {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        font-size: 0.95em;
+    }
+    .tips-list li:last-child { border-bottom: none; }
+    .tip-emoji { font-size: 1.2em; flex-shrink: 0; }
+    
+    @media (max-width: 768px) {
+        .bento-grid { grid-template-columns: 1fr; }
+        .bento-item.span-2 { grid-column: span 1; }
+        .hero h1 { font-size: 2em; }
+        .start-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+
+<div class="hero animate-in">
+    <h1>🌸 Chào mừng đến HonJP</h1>
+    <p>Nền tảng học tiếng Nhật thông minh dành cho người Việt — Từ N5 đến N1</p>
+</div>
+
+<!-- Bento Stats Grid -->
+<div class="bento-grid">
+    <div class="bento-item" style="animation: fadeInUp 0.4s ease both;">
+        <div class="glow glow-purple"></div>
+        <div class="bento-stat-icon">📖</div>
+        <div class="bento-stat-value grad-1">{{ stats.vocabulary }}</div>
+        <div class="bento-stat-label">Từ vựng</div>
+        <div class="level-bar" style="margin-top:16px;">
+            {% set vt = stats.vocabulary %}
+            {% for lv in ['N5','N4','N3','N2','N1'] %}
+            <div class="{{ lv|lower }}" style="width: {{ (stats.vocabulary_levels.get(lv, 0) / vt * 100)|round(1) }}%"></div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="bento-item" style="animation: fadeInUp 0.5s ease both;">
+        <div class="glow glow-pink"></div>
+        <div class="bento-stat-icon">🈶</div>
+        <div class="bento-stat-value grad-2">{{ stats.kanji }}</div>
+        <div class="bento-stat-label">Hán tự (Kanji)</div>
+        <div class="level-bar" style="margin-top:16px;">
+            {% set kt = stats.kanji %}
+            {% for lv in ['N5','N4','N3','N2','N1'] %}
+            <div class="{{ lv|lower }}" style="width: {{ (stats.kanji_levels.get(lv, 0) / kt * 100)|round(1) }}%"></div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="bento-item" style="animation: fadeInUp 0.6s ease both;">
+        <div class="glow glow-cyan"></div>
+        <div class="bento-stat-icon">📝</div>
+        <div class="bento-stat-value grad-3">{{ stats.grammar }}</div>
+        <div class="bento-stat-label">Ngữ pháp</div>
+        <div class="level-bar" style="margin-top:16px;">
+            {% set gt = stats.grammar %}
+            {% for lv in ['N5','N4','N3','N2','N1'] %}
+            <div class="{{ lv|lower }}" style="width: {{ (stats.grammar_levels.get(lv, 0) / gt * 100)|round(1) }}%"></div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Level Distribution Table -->
+    <div class="bento-item span-2" style="animation: fadeInUp 0.7s ease both;">
+        <h3 style="font-weight:700;margin-bottom:16px;font-size:1.05em;">📊 Phân bố theo cấp độ JLPT</h3>
+        <table class="level-dist-table">
+            <thead>
+                <tr>
+                    <th>Cấp độ</th>
+                    <th>Từ vựng</th>
+                    <th>Hán tự</th>
+                    <th>Ngữ pháp</th>
+                    <th style="display:none;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set level_desc = {'N5': 'Sơ cấp', 'N4': 'Sơ trung', 'N3': 'Trung cấp', 'N2': 'Trung cao', 'N1': 'Cao cấp'} %}
+                {% for lv in ['N5','N4','N3','N2','N1'] %}
+                <tr>
+                    <td><span class="level-badge level-{{ lv }}">{{ lv }}</span> <span style="color:var(--text-light);font-size:0.85em;margin-left:4px;">{{ level_desc[lv] }}</span></td>
+                    <td><strong>{{ stats.vocabulary_levels.get(lv, 0) }}</strong></td>
+                    <td><strong>{{ stats.kanji_levels.get(lv, 0) }}</strong></td>
+                    <td><strong>{{ stats.grammar_levels.get(lv, 0) }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Tips -->
+    <div class="bento-item" style="animation: fadeInUp 0.8s ease both;">
+        <h3 style="font-weight:700;margin-bottom:12px;font-size:1.05em;">💡 Mẹo học</h3>
+        <ul class="tips-list">
+            <li><span class="tip-emoji">🎯</span> Bắt đầu từ N5</li>
+            <li><span class="tip-emoji">📅</span> 15-30 phút/ngày</li>
+            <li><span class="tip-emoji">🃏</span> Dùng Flashcard</li>
+            <li><span class="tip-emoji">🈶</span> Học qua bộ thủ</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Quick Start -->
+<h2 style="font-weight:800;font-size:1.4em;margin-bottom:16px;letter-spacing:-0.02em;">🚀 Bắt đầu học</h2>
+<div class="start-grid">
+    <a href="/vocabulary?level=N5" class="start-card">
+        <div class="s-icon">📖</div>
+        <div class="s-title">Từ vựng N5</div>
+        <div class="s-desc">Bắt đầu với từ cơ bản nhất</div>
+    </a>
+    <a href="/kanji?level=N5" class="start-card">
+        <div class="s-icon">🈶</div>
+        <div class="s-title">Hán tự N5</div>
+        <div class="s-desc">80 hán tự cho người mới</div>
+    </a>
+    <a href="/grammar?level=N5" class="start-card">
+        <div class="s-icon">📝</div>
+        <div class="s-title">Ngữ pháp N5</div>
+        <div class="s-desc">Cấu trúc nền tảng</div>
+    </a>
+    <a href="/flashcard" class="start-card">
+        <div class="s-icon">🃏</div>
+        <div class="s-title">Flashcard</div>
+        <div class="s-desc">Luyện nhớ bằng thẻ</div>
+    </a>
+    <a href="/quiz" class="start-card">
+        <div class="s-icon">❓</div>
+        <div class="s-title">Kiểm tra</div>
+        <div class="s-desc">Quiz trắc nghiệm</div>
+    </a>
+</div>
+{% endblock %}

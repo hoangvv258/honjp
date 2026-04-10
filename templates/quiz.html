@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Kiểm tra - HonJP{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>❓ Kiểm tra kiến thức</h1>
+    <p>Trắc nghiệm để kiểm tra khả năng ghi nhớ của bạn</p>
+</div>
+
+<div id="setupScreen">
+    <div class="card" style="max-width:600px;margin:0 auto;text-align:center;">
+        <div style="font-size:3.5em;margin-bottom:16px;filter:drop-shadow(0 4px 8px rgba(108,99,255,0.15));">📝</div>
+        <h2 style="margin-bottom:24px;font-weight:800;letter-spacing:-0.02em;">Thiết lập bài kiểm tra</h2>
+        
+        <div style="margin-bottom:20px;">
+            <p style="font-weight:600;margin-bottom:8px;">Chọn loại:</p>
+            <div class="level-tabs" style="justify-content:center;">
+                <button class="level-tab active" data-type="vocabulary" onclick="setQuizType('vocabulary', this)">📖 Từ vựng</button>
+                <button class="level-tab" data-type="kanji" onclick="setQuizType('kanji', this)">🈶 Hán tự</button>
+                <button class="level-tab" data-type="grammar" onclick="setQuizType('grammar', this)">📝 Ngữ pháp</button>
+            </div>
+        </div>
+        
+        <div style="margin-bottom:20px;">
+            <p style="font-weight:600;margin-bottom:8px;">Chọn cấp độ:</p>
+            <div class="level-tabs" style="justify-content:center;">
+                {% for lv in levels %}
+                <button class="level-tab level-select {% if lv == 'N5' %}active{% endif %}" data-level="{{ lv }}" onclick="setQuizLevel('{{ lv }}', this)">{{ lv }}</button>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div style="margin-bottom:20px;">
+            <p style="font-weight:600;margin-bottom:8px;">Số câu hỏi:</p>
+            <div class="level-tabs" style="justify-content:center;">
+                <button class="level-tab" onclick="setQuizCount(5, this)">5</button>
+                <button class="level-tab active" data-count="10" onclick="setQuizCount(10, this)">10</button>
+                <button class="level-tab" onclick="setQuizCount(15, this)">15</button>
+                <button class="level-tab" onclick="setQuizCount(20, this)">20</button>
+            </div>
+        </div>
+        
+        <button class="btn btn-primary btn-lg" onclick="startQuiz()">🚀 Bắt đầu kiểm tra</button>
+    </div>
+</div>
+
+<div id="quizScreen" style="display:none;">
+    <div class="quiz-container">
+        <div class="quiz-progress-bar"><div class="fill" id="qProgressBar" style="width:0%;"></div></div>
+        <div class="quiz-progress" id="quizProgress"></div>
+        
+        <div class="card">
+            <div class="quiz-question">
+                <div style="color:var(--text-light);margin-bottom:8px;" id="questionLabel"></div>
+                <div class="question-text" id="questionText"></div>
+                <div style="color:var(--text-light);font-size:0.9em;" id="questionReading"></div>
+            </div>
+            
+            <div class="quiz-options" id="quizOptions"></div>
+            
+            <div style="text-align:center;margin-top:20px;display:none;" id="nextBtn">
+                <button class="btn btn-primary" onclick="nextQuestion()">Câu tiếp theo →</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="resultScreen" style="display:none;">
+    <div class="card quiz-result" style="max-width:600px;margin:0 auto;">
+        <div style="font-size:3em;margin-bottom:16px;" id="resultEmoji">🎉</div>
+        <h2>Kết quả</h2>
+        <div class="score" id="resultScore"></div>
+        <p id="resultMessage" style="color:var(--text-light);margin:12px 0;"></p>
+        
+        <div id="resultDetails" style="text-align:left;margin:20px 0;"></div>
+        
+        <div style="display:flex;gap:12px;justify-content:center;margin-top:24px;">
+            <button class="btn btn-primary" onclick="startQuiz()">🔄 Làm lại</button>
+            <button class="btn btn-outline" onclick="showSetup()">⚙️ Đổi thiết lập</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let quizType = 'vocabulary';
+let quizLevel = 'N5';
+let quizCount = 10;
+let questions = [];
+let currentQ = 0;
+let score = 0;
+let answered = false;
+let results = [];
+
+function setQuizType(type, btn) {
+    quizType = type;
+    document.querySelectorAll('[data-type]').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function setQuizLevel(level, btn) {
+    quizLevel = level;
+    document.querySelectorAll('.level-select').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function setQuizCount(count, btn) {
+    quizCount = count;
+    btn.parentElement.querySelectorAll('.level-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function showSetup() {
+    document.getElementById('setupScreen').style.display = 'block';
+    document.getElementById('quizScreen').style.display = 'none';
+    document.getElementById('resultScreen').style.display = 'none';
+}
+
+function startQuiz() {
+    fetch(`/api/quiz?type=${quizType}&level=${quizLevel}&count=${quizCount}`)
+        .then(r => r.json())
+        .then(data => {
+            questions = data.questions;
+            if (questions.length === 0) {
+                alert('Không đủ dữ liệu cho bài kiểm tra này!');
+                return;
+            }
+            currentQ = 0;
+            score = 0;
+            results = [];
+            
+            document.getElementById('setupScreen').style.display = 'none';
+            document.getElementById('quizScreen').style.display = 'block';
+            document.getElementById('resultScreen').style.display = 'none';
+            
+            showQuestion();
+        });
+}
+
+function showQuestion() {
+    const q = questions[currentQ];
+    answered = false;
+    
+    // Progress dots
+    let dots = '';
+    for (let i = 0; i < questions.length; i++) {
+        let cls = '';
+        if (i === currentQ) cls = 'current';
+        else if (results[i] === true) cls = 'correct';
+        else if (results[i] === false) cls = 'wrong';
+        dots += `<div class="quiz-dot ${cls}"></div>`;
+    }
+    document.getElementById('quizProgress').innerHTML = dots;
+    
+    document.getElementById('questionLabel').textContent = `Câu ${currentQ + 1} / ${questions.length}`;
+    document.getElementById('qProgressBar').style.width = ((currentQ + 1) / questions.length * 100).toFixed(0) + '%';
+    document.getElementById('questionText').textContent = q.question;
+    document.getElementById('questionReading').textContent = q.reading || '';
+    document.getElementById('nextBtn').style.display = 'none';
+    
+    let html = '';
+    q.options.forEach((opt, i) => {
+        html += `<div class="quiz-option" data-answer="${esc(opt)}" onclick="selectAnswer(this, '${esc(opt).replace(/'/g, "\\'")}')">${esc(opt)}</div>`;
+    });
+    document.getElementById('quizOptions').innerHTML = html;
+}
+
+function selectAnswer(el, answer) {
+    if (answered) return;
+    answered = true;
+    
+    const q = questions[currentQ];
+    const correct = q.correct;
+    const isCorrect = answer === correct;
+    
+    if (isCorrect) {
+        score++;
+        el.classList.add('correct');
+        results.push(true);
+    } else {
+        el.classList.add('wrong');
+        results.push(false);
+        // Highlight correct answer
+        document.querySelectorAll('.quiz-option').forEach(opt => {
+            if (opt.dataset.answer === correct) opt.classList.add('correct');
+        });
+    }
+    
+    // Update progress
+    fetch('/api/progress', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({item_type: quizType, item_id: q.id, correct: isCorrect})
+    });
+    
+    if (currentQ < questions.length - 1) {
+        document.getElementById('nextBtn').style.display = 'block';
+    } else {
+        setTimeout(showResults, 1000);
+    }
+}
+
+function nextQuestion() {
+    currentQ++;
+    showQuestion();
+}
+
+function showResults() {
+    document.getElementById('quizScreen').style.display = 'none';
+    document.getElementById('resultScreen').style.display = 'block';
+    
+    const pct = Math.round((score / questions.length) * 100);
+    document.getElementById('resultScore').textContent = `${score} / ${questions.length} (${pct}%)`;
+    
+    let emoji = '😞';
+    let msg = 'Cần luyện tập thêm nhé!';
+    if (pct >= 90) { emoji = '🏆'; msg = 'Xuất sắc! Bạn nắm vững kiến thức rồi!'; }
+    else if (pct >= 70) { emoji = '🎉'; msg = 'Tốt lắm! Tiếp tục cố gắng!'; }
+    else if (pct >= 50) { emoji = '💪'; msg = 'Khá ổn! Hãy ôn lại những phần chưa đúng.'; }
+    
+    document.getElementById('resultEmoji').textContent = emoji;
+    document.getElementById('resultMessage').textContent = msg;
+    
+    // Show details
+    let details = '<table class="data-table"><thead><tr><th>Câu hỏi</th><th>Đáp án đúng</th><th>Kết quả</th></tr></thead><tbody>';
+    questions.forEach((q, i) => {
+        const icon = results[i] ? '✅' : '❌';
+        details += `<tr><td class="jp-word">${esc(q.question)}</td><td>${esc(q.correct)}</td><td>${icon}</td></tr>`;
+    });
+    details += '</tbody></table>';
+    document.getElementById('resultDetails').innerHTML = details;
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+</script>
+{% endblock %}

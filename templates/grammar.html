@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+
+{% block title %}Ngữ pháp - HonJP{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📝 Ngữ pháp tiếng Nhật</h1>
+    <p>Học ngữ pháp với cấu trúc, giải thích chi tiết và ví dụ thực tế</p>
+</div>
+
+<div class="filter-bar">
+    <input type="text" id="searchInput" placeholder="🔍 Tìm ngữ pháp (mẫu câu, nghĩa tiếng Việt)...">
+    <div class="level-tabs">
+        <button class="level-tab all active" data-level="">Tất cả</button>
+        {% for lv in levels %}
+        <button class="level-tab" data-level="{{ lv }}">{{ lv }}</button>
+        {% endfor %}
+    </div>
+    <div class="bookmark-tabs">
+        <button class="bm-tab active" data-bookmark="">📚 Tất cả</button>
+        <button class="bm-tab" data-bookmark="review">🔖 Cần ôn lại</button>
+        <button class="bm-tab" data-bookmark="learned">✅ Đã học</button>
+    </div>
+</div>
+
+<div class="grammar-stats" id="grammarStats"></div>
+
+<div id="grammarContent">
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Đang tải ngữ pháp...</p>
+    </div>
+</div>
+<div id="pagination" class="pagination"></div>
+
+<!-- Grammar Detail Modal -->
+<div id="grammarModal" class="g-modal-overlay" style="display:none;" onclick="if(event.target===this)closeGrammarModal()">
+    <div class="g-modal-content">
+        <button class="g-modal-close" onclick="closeGrammarModal()">✕</button>
+        <div id="grammarModalBody">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+</div>
+
+<style>
+.grammar-stats {
+    display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.grammar-stats .stat-chip {
+    background: var(--card); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border); padding: 6px 16px; border-radius: 20px;
+    font-size: 0.84em; color: var(--text-light); font-weight: 500;
+}
+.grammar-card {
+    background: var(--card); backdrop-filter: var(--glass-blur);
+    border-radius: var(--radius-lg); padding: 26px 28px;
+    margin-bottom: 16px; 
+    border: var(--glass-border); border-left: 4px solid var(--primary);
+    box-shadow: var(--shadow); transition: var(--transition);
+    cursor: pointer; position: relative; overflow: hidden;
+}
+.grammar-card:hover { box-shadow: var(--shadow-pastel); transform: translateY(-4px); }
+.grammar-card .pattern { font-size: 1.4rem; font-weight: 800; color: var(--text); font-family: 'Noto Sans JP', 'Inter', sans-serif; }
+.grammar-card .meaning {
+    font-size: 1.02rem; font-weight: 700; margin: 8px 0;
+    background: linear-gradient(135deg, var(--primary), var(--warm));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.grammar-card .structure-box {
+    background: rgba(108,99,255,0.05); border: 1px solid rgba(108,99,255,0.12); border-radius: var(--radius-sm);
+    padding: 12px 16px; margin: 12px 0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.93rem;
+}
+.grammar-card .explanation-box {
+    background: var(--warning-light); border: 1px solid rgba(245,158,11,0.2); border-radius: var(--radius-sm);
+    padding: 12px 16px; margin: 12px 0; line-height: 1.7;
+}
+.grammar-card .example-box {
+    background: rgba(108,99,255,0.03); border-radius: var(--radius-sm);
+    padding: 14px 16px; margin: 12px 0; border: 1px solid var(--border);
+}
+.grammar-card .example-box .jp { font-size: 1.12rem; font-weight: 700; margin-bottom: 6px; color: var(--text); font-family: 'Noto Sans JP', 'Inter', sans-serif; }
+.grammar-card .example-box .reading { color: var(--text-light); font-size: 0.92rem; margin-bottom: 4px; }
+.grammar-card .example-box .vi { color: var(--success); font-weight: 600; }
+.grammar-card .no-data {
+    color: var(--text-muted); font-style: italic; font-size: 0.88rem; padding: 8px 0;
+}
+/* Grammar Modal */
+.g-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15,13,26,0.6); backdrop-filter: blur(4px); z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    animation: gFadeIn 0.2s ease;
+}
+@keyframes gFadeIn { from { opacity: 0; } to { opacity: 1; } }
+.g-modal-content {
+    background: var(--card-solid); border-radius: var(--radius-lg);
+    max-width: 660px; width: 92%; max-height: 85vh; overflow-y: auto;
+    padding: 40px; position: relative;
+    box-shadow: 0 24px 80px rgba(108,99,255,0.18);
+    border: var(--glass-border);
+    animation: gSlideUp 0.3s ease;
+}
+@keyframes gSlideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.g-modal-close {
+    position: absolute; top: 14px; right: 18px;
+    background: none; border: none; font-size: 1.4rem;
+    cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: var(--radius-sm);
+    transition: var(--transition);
+}
+.g-modal-close:hover { background: rgba(108,99,255,0.08); color: var(--primary); }
+.g-pattern-header { text-align: center; margin-bottom: 20px; }
+.g-pattern-main { font-size: 2.2rem; font-weight: 800; color: var(--text); font-family: 'Noto Sans JP', 'Inter', sans-serif; }
+.g-pattern-meaning {
+    font-size: 1.15rem; font-weight: 700; margin-top: 10px;
+    background: linear-gradient(135deg, var(--primary), var(--warm));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.g-section { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+.g-section h3 { font-size: 0.95rem; margin-bottom: 10px; color: var(--text); font-weight: 700; }
+.g-struct-box {
+    background: rgba(108,99,255,0.05); border: 1px solid rgba(108,99,255,0.12); border-radius: var(--radius-sm);
+    padding: 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 1rem; line-height: 1.6;
+}
+.g-explain-box {
+    background: var(--warning-light); border: 1px solid rgba(245,158,11,0.2); border-radius: var(--radius-sm);
+    padding: 16px; line-height: 1.8; font-size: 1rem;
+}
+.g-example-box {
+    background: rgba(108,99,255,0.03); border-left: 3px solid var(--primary); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding: 18px; margin-top: 8px; border: 1px solid var(--border); border-left: 3px solid var(--primary);
+}
+.g-example-box .jp { font-size: 1.25rem; font-weight: 700; color: var(--text); margin-bottom: 6px; font-family: 'Noto Sans JP', 'Inter', sans-serif; }
+.g-example-box .rd { color: var(--text-light); margin-bottom: 4px; }
+.g-example-box .vi { color: var(--success); font-weight: 600; font-size: 1.02rem; }
+.g-related-chip {
+    display: inline-block; background: rgba(108,99,255,0.04); border: 1px solid var(--border);
+    padding: 8px 16px; border-radius: var(--radius-sm); margin: 4px; cursor: pointer;
+    font-size: 0.9rem; transition: var(--transition);
+}
+.g-related-chip:hover { background: rgba(108,99,255,0.1); border-color: var(--primary); transform: translateY(-2px); }
+/* Bookmark */
+.bookmark-tabs { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.bm-tab {
+    padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--card); font-size: 0.85rem; cursor: pointer;
+    transition: var(--transition); color: var(--text-light); font-weight: 500;
+}
+.bm-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.bm-tab:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
+.bm-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: center; flex-wrap: wrap; }
+.bm-btn {
+    padding: 8px 18px; border-radius: 20px; font-size: 0.88rem; font-weight: 600;
+    cursor: pointer; transition: var(--transition); border: 2px solid var(--border);
+    background: var(--card);
+}
+.bm-btn:hover { transform: translateY(-1px); }
+.bm-btn.bm-review { color: var(--warning); border-color: var(--warning); }
+.bm-btn.bm-review.active, .bm-btn.bm-review:hover { background: var(--warning); color: #fff; }
+.bm-btn.bm-learned { color: var(--success); border-color: var(--success); }
+.bm-btn.bm-learned.active, .bm-btn.bm-learned:hover { background: var(--success); color: #fff; }
+.bm-btn.bm-clear { color: var(--text-muted); border-color: var(--border); }
+.bm-btn.bm-clear:hover { background: var(--bg-muted); }
+.bm-indicator { font-size: 0.8rem; margin-left: 6px; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentLevel = new URLSearchParams(window.location.search).get('level') || '';
+let currentSearch = '';
+let currentBookmark = '';
+let currentPage = 1;
+let searchTimeout;
+let bookmarkMap = {};
+
+if (currentLevel) {
+    document.querySelectorAll('.level-tab').forEach(t => {
+        t.classList.remove('active');
+        if (t.dataset.level === currentLevel) t.classList.add('active');
+    });
+}
+
+function loadBookmarks() {
+    return fetch('/api/bookmark?item_type=grammar')
+        .then(r => r.json())
+        .then(data => { bookmarkMap = {}; for (const [k,v] of Object.entries(data)) bookmarkMap[parseInt(k)] = v; });
+}
+
+function loadGrammar() {
+    const content = document.getElementById('grammarContent');
+    content.innerHTML = '<div class="loading"><div class="spinner"></div><p>Đang tải...</p></div>';
+    
+    const params = new URLSearchParams({ page: currentPage, per_page: 20 });
+    if (currentLevel) params.set('level', currentLevel);
+    if (currentSearch) params.set('search', currentSearch);
+    if (currentBookmark) params.set('bookmark', currentBookmark);
+    
+    fetch(`/api/grammar?${params}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.items.length === 0) {
+                content.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>Không tìm thấy ngữ pháp nào</p></div>';
+                document.getElementById('pagination').innerHTML = '';
+                document.getElementById('grammarStats').innerHTML = '';
+                return;
+            }
+            
+            // Stats
+            const withEx = data.items.filter(i => i.example).length;
+            const withStruct = data.items.filter(i => i.structure).length;
+            document.getElementById('grammarStats').innerHTML = `
+                <div class="stat-chip">📊 Tổng: ${data.total} mẫu</div>
+                <div class="stat-chip">📌 Có ví dụ: ${withEx}/${data.items.length}</div>
+                <div class="stat-chip">📐 Có cấu trúc: ${withStruct}/${data.items.length}</div>
+            `;
+            
+            let html = '';
+            
+            data.items.forEach(item => {
+                const borderColor = {'N5':'var(--n5)','N4':'var(--n4)','N3':'var(--n3)','N2':'var(--n2)','N1':'var(--n1)'}[item.level] || 'var(--accent)';
+                
+                html += `<div class="grammar-card" style="border-left-color:${borderColor}" onclick="openGrammarDetail(${item.id})">`;
+                html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">`;
+                html += `<div class="pattern">${esc(item.pattern)}${(function(){ const bm = bookmarkMap[item.id]||''; return bm==='review'?'<span class="bm-indicator">🔖</span>':bm==='learned'?'<span class="bm-indicator">✅</span>':''; })()}</div>`;
+                html += `<span class="level-badge level-${item.level}">${item.level}</span>`;
+                html += `</div>`;
+                
+                html += `<div class="meaning">🇻🇳 ${esc(item.meaning)}</div>`;
+                
+                if (item.structure) {
+                    html += `<div style="color:var(--text-light);font-size:0.9em;margin-top:6px;">📐 ${esc(item.structure)}</div>`;
+                }
+                
+                html += `<div style="margin-top:8px;text-align:right;color:var(--accent);font-size:0.85em;">👆 Click xem chi tiết</div>`;
+                html += `</div>`;
+            });
+            
+            html += `<p style="margin-top:16px;color:var(--text-light);font-size:0.9em;text-align:center;">Hiển thị ${data.items.length} / ${data.total} ngữ pháp — Click vào mẫu để xem chi tiết</p>`;
+            content.innerHTML = html;
+            
+            renderPagination(data.page, data.pages);
+        });
+}
+
+function openGrammarDetail(id) {
+    const modal = document.getElementById('grammarModal');
+    const body = document.getElementById('grammarModalBody');
+    modal.style.display = 'flex';
+    body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    document.body.style.overflow = 'hidden';
+    
+    fetch(`/api/grammar/${id}`)
+        .then(r => r.json())
+        .then(data => {
+            let html = '';
+            html += `<div class="g-pattern-header">`;
+            html += `<span class="level-badge level-${data.level}" style="margin-bottom:6px;display:inline-block;">${data.level}</span>`;
+            html += `<div class="g-pattern-main">${esc(data.pattern)}</div>`;
+            html += `<div class="g-pattern-meaning">🇻🇳 ${esc(data.meaning)}</div>`;
+            html += `</div>`;
+            
+            // Structure
+            if (data.structure) {
+                html += `<div class="g-section"><h3>📐 Cấu trúc (文型)</h3>`;
+                html += `<div class="g-struct-box">${esc(data.structure)}</div>`;
+                html += `</div>`;
+            }
+            
+            // Explanation
+            if (data.explanation) {
+                html += `<div class="g-section"><h3>💡 Giải thích chi tiết</h3>`;
+                html += `<div class="g-explain-box">${esc(data.explanation)}</div>`;
+                html += `</div>`;
+            }
+            
+            // Example
+            if (data.example) {
+                html += `<div class="g-section"><h3>📌 Ví dụ thực tế</h3>`;
+                html += `<div class="g-example-box">`;
+                html += `<div class="jp">${esc(data.example)}</div>`;
+                if (data.example_reading) html += `<div class="rd">🔊 ${esc(data.example_reading)}</div>`;
+                if (data.example_meaning) html += `<div class="vi">🇻🇳 ${esc(data.example_meaning)}</div>`;
+                html += `</div></div>`;
+            }
+            
+            // Related patterns
+            if (data.related_patterns && data.related_patterns.length > 0) {
+                html += `<div class="g-section"><h3>📚 Ngữ pháp cùng cấp ${esc(data.level)}</h3>`;
+                html += `<div style="display:flex;flex-wrap:wrap;gap:4px;">`;
+                data.related_patterns.slice(0, 8).forEach(r => {
+                    html += `<div class="g-related-chip" onclick="closeGrammarModal();setTimeout(()=>openGrammarDetail(${r.id}),200)">`;
+                    html += `<strong>${esc(r.pattern)}</strong> — ${esc(r.meaning)}`;
+                    html += `</div>`;
+                });
+                html += `</div></div>`;
+            }
+            
+            // Bookmark actions
+            const curBm = bookmarkMap[data.id] || '';
+            html += `<div class="g-section"><h3>📋 Đánh dấu</h3>`;
+            html += `<div class="bm-actions">`;
+            html += `<button class="bm-btn bm-review${curBm === 'review' ? ' active' : ''}" onclick="setBookmark(${data.id},'review')">🔖 Cần ôn lại</button>`;
+            html += `<button class="bm-btn bm-learned${curBm === 'learned' ? ' active' : ''}" onclick="setBookmark(${data.id},'learned')">✅ Đã học</button>`;
+            if (curBm) html += `<button class="bm-btn bm-clear" onclick="setBookmark(${data.id},'')">✕ Xóa đánh dấu</button>`;
+            html += `</div></div>`;
+            
+            body.innerHTML = html;
+        })
+        .catch(() => {
+            body.innerHTML = '<p style="text-align:center;color:var(--danger);">Không thể tải dữ liệu</p>';
+        });
+}
+
+function setBookmark(itemId, status) {
+    fetch('/api/bookmark', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({item_type: 'grammar', item_id: itemId, status: status})
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            if (status) bookmarkMap[itemId] = status;
+            else delete bookmarkMap[itemId];
+            closeGrammarModal();
+            loadGrammar();
+        }
+    });
+}
+
+function closeGrammarModal() {
+    document.getElementById('grammarModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGrammarModal(); });
+
+function renderPagination(page, totalPages) {
+    const pag = document.getElementById('pagination');
+    if (totalPages <= 1) { pag.innerHTML = ''; return; }
+    let html = `<button ${page <= 1 ? 'disabled' : ''} onclick="goPage(${page-1})">← Trước</button>`;
+    const start = Math.max(1, page - 2);
+    const end = Math.min(totalPages, page + 2);
+    if (start > 1) html += `<button onclick="goPage(1)">1</button>`;
+    if (start > 2) html += `<button disabled>...</button>`;
+    for (let i = start; i <= end; i++) {
+        html += `<button class="${i === page ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    if (end < totalPages - 1) html += `<button disabled>...</button>`;
+    if (end < totalPages) html += `<button onclick="goPage(${totalPages})">${totalPages}</button>`;
+    html += `<button ${page >= totalPages ? 'disabled' : ''} onclick="goPage(${page+1})">Sau →</button>`;
+    pag.innerHTML = html;
+}
+
+function goPage(p) { currentPage = p; loadGrammar(); window.scrollTo(0, 0); }
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+document.querySelectorAll('.level-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.level-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentLevel = tab.dataset.level;
+        currentPage = 1;
+        loadGrammar();
+    });
+});
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        currentSearch = e.target.value.trim();
+        currentPage = 1;
+        loadGrammar();
+    }, 300);
+});
+
+document.querySelectorAll('.bm-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.bm-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentBookmark = tab.dataset.bookmark;
+        currentPage = 1;
+        loadGrammar();
+    });
+});
+
+loadBookmarks().then(() => loadGrammar());
+</script>
+{% endblock %}

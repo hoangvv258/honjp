@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+venv/
+honjp.db
+*.db
+.DS_Store
+html.html
+tesst.py

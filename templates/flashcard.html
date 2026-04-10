@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Flashcard - HonJP{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🃏 Flashcard - Thẻ ghi nhớ</h1>
+    <p>Lật thẻ để luyện nhớ từ vựng, hán tự và ngữ pháp</p>
+</div>
+
+<div class="filter-bar" style="justify-content: center;">
+    <div class="level-tabs">
+        <button class="level-tab" data-type="vocabulary" onclick="setType('vocabulary')">📖 Từ vựng</button>
+        <button class="level-tab" data-type="kanji" onclick="setType('kanji')">🈶 Hán tự</button>
+        <button class="level-tab" data-type="grammar" onclick="setType('grammar')">📝 Ngữ pháp</button>
+    </div>
+    <div class="level-tabs">
+        {% for lv in levels %}
+        <button class="level-tab level-select" data-level="{{ lv }}" onclick="setLevel('{{ lv }}')">{{ lv }}</button>
+        {% endfor %}
+    </div>
+    <button class="btn btn-primary" onclick="startFlashcard()">🔄 Bắt đầu</button>
+</div>
+
+<div class="flashcard-container" id="flashcardArea" style="display:none;">
+    <div class="flashcard-counter" id="counter"></div>
+    <div class="quiz-progress-bar" style="margin-bottom:16px;"><div class="fill" id="fcProgress" style="width:5%;"></div></div>
+    
+    <div class="flashcard" id="flashcard" onclick="flipCard()">
+        <div class="front" id="front"></div>
+        <div class="back" id="back"></div>
+    </div>
+    
+    <div class="flashcard-controls" style="margin-top: 20px;">
+        <button class="btn btn-outline" onclick="prevCard()">←  Trước</button>
+        <button class="btn btn-primary" onclick="flipCard()">🔄  Lật thẻ</button>
+        <button class="btn btn-outline" onclick="nextCard()">Sau  →</button>
+    </div>
+    
+    <div style="margin-top: 16px;">
+        <button class="btn btn-success" onclick="markKnown()">✅ Đã biết</button>
+        <button class="btn btn-danger" onclick="markUnknown()">❌ Chưa biết</button>
+    </div>
+</div>
+
+<div id="startScreen" class="card" style="text-align:center;padding:60px 24px;">
+    <div style="font-size:4em;margin-bottom:16px;filter:drop-shadow(0 4px 8px rgba(108,99,255,0.15));">🃏</div>
+    <h2 style="font-weight:800;letter-spacing:-0.02em;">Chọn loại thẻ và cấp độ</h2>
+    <p style="color:var(--text-light);margin-top:8px;">Chọn loại nội dung và cấp độ JLPT ở trên, sau đó nhấn "Bắt đầu"</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let cardType = 'vocabulary';
+let cardLevel = 'N5';
+let cards = [];
+let currentIndex = 0;
+
+function setType(type) {
+    cardType = type;
+    document.querySelectorAll('[data-type]').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-type="${type}"]`).classList.add('active');
+}
+
+function setLevel(level) {
+    cardLevel = level;
+    document.querySelectorAll('.level-select').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.level-select[data-level="${level}"]`).classList.add('active');
+}
+
+function startFlashcard() {
+    fetch(`/api/flashcard?type=${cardType}&level=${cardLevel}&count=20`)
+        .then(r => r.json())
+        .then(data => {
+            cards = data.items;
+            if (cards.length === 0) {
+                alert('Không có dữ liệu cho lựa chọn này!');
+                return;
+            }
+            currentIndex = 0;
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('flashcardArea').style.display = 'block';
+            showCard();
+        });
+}
+
+function showCard() {
+    const card = cards[currentIndex];
+    const fc = document.getElementById('flashcard');
+    fc.classList.remove('flipped');
+    
+    document.getElementById('counter').textContent = `${currentIndex + 1} / ${cards.length}`;
+    const pct = ((currentIndex + 1) / cards.length * 100).toFixed(0);
+    document.getElementById('fcProgress').style.width = pct + '%';
+    
+    const front = document.getElementById('front');
+    const back = document.getElementById('back');
+    
+    if (cardType === 'vocabulary') {
+        front.innerHTML = `<div>${esc(card.word)}</div>`;
+        if (card.reading) front.innerHTML += `<div style="font-size:0.4em;color:var(--text-light);margin-top:8px;">${esc(card.reading)}</div>`;
+        
+        back.innerHTML = `<div class="answer-word">${esc(card.meaning)}</div>`;
+        if (card.type) back.innerHTML += `<div class="answer-detail">📂 ${esc(card.type)}</div>`;
+        if (card.example) {
+            back.innerHTML += `<div class="answer-example">
+                <div><strong>${esc(card.example)}</strong></div>
+                ${card.example_reading ? `<div style="color:var(--text-light)">${esc(card.example_reading)}</div>` : ''}
+                ${card.example_meaning ? `<div style="color:var(--success)">${esc(card.example_meaning)}</div>` : ''}
+            </div>`;
+        }
+    } else if (cardType === 'kanji') {
+        front.innerHTML = `<div style="font-size:1.5em">${esc(card.kanji)}</div>`;
+        
+        let backHtml = `<div class="answer-word">${esc(card.meaning)}</div>`;
+        if (card.meaning_vi) backHtml += `<div class="answer-detail">🇻🇳 ${esc(card.meaning_vi)}</div>`;
+        if (card.onyomi) backHtml += `<div class="answer-detail">🔊 On: ${esc(card.onyomi)}</div>`;
+        if (card.kunyomi) backHtml += `<div class="answer-detail">🗣️ Kun: ${esc(card.kunyomi)}</div>`;
+        if (card.radical) backHtml += `<div class="answer-detail">🔤 Bộ: ${esc(card.radical)}</div>`;
+        
+        if (card.examples && card.examples.length > 0) {
+            backHtml += `<div class="answer-example">`;
+            card.examples.forEach(ex => {
+                backHtml += `<div><strong>${esc(ex.word)}</strong> (${esc(ex.reading)}) → ${esc(ex.meaning)}</div>`;
+            });
+            backHtml += `</div>`;
+        }
+        back.innerHTML = backHtml;
+    } else if (cardType === 'grammar') {
+        front.innerHTML = `<div style="font-size:0.7em">${esc(card.pattern)}</div>`;
+        
+        let backHtml = `<div class="answer-word" style="font-size:1.2em">${esc(card.meaning)}</div>`;
+        if (card.structure) backHtml += `<div class="answer-detail" style="font-family:monospace;background:#f8f9fa;padding:8px;border-radius:6px;">📐 ${esc(card.structure)}</div>`;
+        if (card.explanation) backHtml += `<div class="answer-detail" style="margin-top:8px;">💡 ${esc(card.explanation)}</div>`;
+        if (card.example) {
+            backHtml += `<div class="answer-example">
+                <div><strong>${esc(card.example)}</strong></div>
+                ${card.example_reading ? `<div style="color:var(--text-light)">${esc(card.example_reading)}</div>` : ''}
+                ${card.example_meaning ? `<div style="color:var(--success)">${esc(card.example_meaning)}</div>` : ''}
+            </div>`;
+        }
+        back.innerHTML = backHtml;
+    }
+}
+
+function flipCard() {
+    document.getElementById('flashcard').classList.toggle('flipped');
+}
+
+function nextCard() {
+    if (currentIndex < cards.length - 1) {
+        currentIndex++;
+        showCard();
+    }
+}
+
+function prevCard() {
+    if (currentIndex > 0) {
+        currentIndex--;
+        showCard();
+    }
+}
+
+function markKnown() {
+    const card = cards[currentIndex];
+    fetch('/api/progress', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({item_type: cardType, item_id: card.id, correct: true})
+    });
+    nextCard();
+}
+
+function markUnknown() {
+    const card = cards[currentIndex];
+    fetch('/api/progress', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({item_type: cardType, item_id: card.id, correct: false})
+    });
+    nextCard();
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flipCard(); }
+    if (e.key === 'ArrowRight') nextCard();
+    if (e.key === 'ArrowLeft') prevCard();
+});
+
+// Default selections
+setType('vocabulary');
+setLevel('N5');
+</script>
+{% endblock %}
