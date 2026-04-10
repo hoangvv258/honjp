@@ -1709,10 +1709,20 @@ def clean_vocabulary(data):
     return cleaned
 
 
+def load_kanji_dict():
+    """Load kanji dictionary from kanji_dict.json (fetched from kanjiapi.dev)."""
+    path = os.path.join(DATA_DIR, 'kanji_dict.json')
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+
 def clean_kanji(data):
     """Clean and enrich kanji data."""
     seen = set()
     cleaned = []
+    kanji_dict = load_kanji_dict()
     
     for item in data:
         kanji = item.get('kanji', '').strip()
@@ -1728,13 +1738,19 @@ def clean_kanji(data):
         seen.add(key)
         
         enrichment = KANJI_ENRICHMENT.get(kanji, {})
+        api_data = kanji_dict.get(kanji, {})
         
-        onyomi = enrichment.get('onyomi', item.get('onyomi', ''))
-        kunyomi = enrichment.get('kunyomi', item.get('kunyomi', ''))
-        strokes = enrichment.get('strokes', item.get('strokes', 0))
+        onyomi = enrichment.get('onyomi') or api_data.get('on', '') or item.get('onyomi', '')
+        kunyomi = enrichment.get('kunyomi') or api_data.get('kun', '') or item.get('kunyomi', '')
+        strokes = enrichment.get('strokes') or api_data.get('strokes', 0) or item.get('strokes', 0)
         radical = enrichment.get('radical', '')
         meaning_vi = enrichment.get('meaning_vi', '')
         examples = enrichment.get('examples', [])
+        
+        # Use English meanings from API as fallback if no Vietnamese meaning
+        meaning_en = api_data.get('meanings_en', '')
+        if not meaning_vi and meaning_en:
+            meaning_vi = meaning_en
         
         cleaned.append({
             'kanji': kanji,
